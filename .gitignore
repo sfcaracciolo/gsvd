@@ -1,0 +1,11 @@
+.python-version
+include/
+Lib/
+Scripts/
+share/
+dist/
+etc/
+__pycache__
+.vscode/
+*.eps
+*.pdf
