@@ -9,12 +9,13 @@ for _ in range(100):
     n = rng.integers(25, high=50)
     m1 = rng.integers(50, high=150)
 
-    print(p, n, m1)
-
     A = np.random.rand(p, n)
     B = np.random.rand(m1, n)
 
     ker = rng.integers(0,n//3, 1)[0]
+
+    print(p, m1, n, ker)
+
     A[:,:ker+1] = 1
     B[:,:ker+1] = 1
 

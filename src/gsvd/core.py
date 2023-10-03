@@ -23,8 +23,8 @@ def gsvd(A: np.ndarray, B:np.ndarray, tol: float = 1e-8, return_extras: bool = F
     if p < r:
         raise ValueError('Rows of A must be grather than rank([A, B]).')
 
-    if m1 < n:
-        raise ValueError('B matrix must be tall.')
+    if m1 < r:
+        raise ValueError('Rows of B must be grather than rank([A, B]).')
     
     U, CS, Vt = sp.linalg.cossin(Q, p, r, separate=False)
 
