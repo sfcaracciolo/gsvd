@@ -1,27 +1,50 @@
 import numpy as np 
 import scipy as sp 
 
-def gsvd(A: np.ndarray, L:np.ndarray):
+def gsvd(A: np.ndarray, B:np.ndarray, tol: float = 1e-8, return_extras: bool = False):
     """
-    Generalized singular value decomposition.
+    Generalized singular value decomposition. 
     """
-    p, q = A.shape
-    m = p + q
-    M = np.vstack([A, L])
-    Q, S, Zt = np.linalg.svd(M, full_matrices=True, compute_uv=True)
-    U, CS, Vt = sp.linalg.cossin(Q, p, q, separate=False)
-    r = S.size # rank(M)
+
+    if A.shape[1] != B.shape[1]:
+        raise ValueError('Last dimension of A & B must be equal.')
+    
+
+    p, n = A.shape
+    m1, _ = B.shape
+
+    M = np.vstack([A, B])
+    m, _ = M.shape
+    Q, sv, Zt = np.linalg.svd(M, full_matrices=True, compute_uv=True)
+    sv[sv<tol] = 0
+    r = np.count_nonzero(sv) # rank(M)
+    m2 = m - r
+
+    if p < r:
+        raise ValueError('Rows of A must be grather than rank([A, B]).')
+
+    if m1 < n:
+        raise ValueError('B matrix must be tall.')
+    
+    U, CS, Vt = sp.linalg.cossin(Q, p, r, separate=False)
 
     U_1 = U[:p,:p] # pxp
-    U_2 = U[p:,p:] # qxq
-    V_1 = Vt.T[:r,:r] # rxr
+    U_2 = U[p:,p:] # m1xm1
+    V_1t = Vt[:r,:r] # rxr
+    V_2t = Vt[r:,r:] # m2xm2
 
-    I = sp.sparse.identity(q-r, dtype=np.float64, format='dia')
-    Sr = sp.sparse.dia_matrix((S, 0), shape=(r,r), dtype=np.float64)
-    T = sp.sparse.block_diag((V_1.T @ Sr, I))
-    X = Zt.T @ sp.linalg.inv(T.todense())
+    D_11 = sp.sparse.hstack((CS[:p,:r], sp.sparse.csc_array((p, n-r)))) # pxr + px(n-r)
+    D_21 = sp.sparse.hstack((CS[p:,:r], sp.sparse.csc_array((m1, n-r)))) # m1xr + m1x(n-r)
 
-    D_A = sp.sparse.dia_matrix(CS[:p,:q], dtype=np.float64)
-    D_L = sp.sparse.dia_matrix(CS[p:m,:q], dtype=np.float64)
+    I = sp.sparse.identity(n-r, format='dia', dtype=np.float64)
+    Sr = sp.sparse.dia_matrix((sv[:r], 0), shape=(r,r), dtype=np.float64)
+    W = sp.sparse.block_diag((V_1t @ Sr, I)).tocsc()
+    X = Zt.T @ sp.sparse.linalg.inv(W)
     
-    return (U_1, U_2), (D_A, D_L), X
+    if return_extras:
+        C = CS[:r,:r]
+        S = CS[-r:,:r]
+        extras = dict( cs=(C, S), rank=r)
+        return (U_1, U_2), (D_11, D_21), X, extras
+    
+    return (U_1, U_2), (D_11, D_21), X
