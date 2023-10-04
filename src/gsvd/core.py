@@ -78,14 +78,8 @@ def gsvd(A: np.ndarray, B:np.ndarray, tol: float = 1e-8, return_extras: bool = F
 
     X = Zt.T @ sp.sparse.linalg.inv(W.tocsc())
 
-    # plt.spy(D)
-    # plt.axhline(p)
-    # plt.axvline(r)
-    # plt.show()
     D_A = sp.sparse.hstack((D_11, sp.sparse.csc_array(( p, n-r)))) # pxr + px(n-r)
     D_B = sp.sparse.hstack((D_21, sp.sparse.csc_array((m1, n-r)))) # m1xr + m1x(n-r)
-
-
 
     if return_extras: return (U_1, U_2), (D_A, D_B), X, dict(cs=(C, S), rank=r, full_cs=(U, D, Vt), q=Q)
     return (U_1, U_2), (D_A, D_B), X
