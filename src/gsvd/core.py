@@ -25,17 +25,17 @@ def cs(Q: np.ndarray, shape: Tuple[int, int], ret: Literal['full', 'blocks', 'cs
     D_11 = sp.sparse.block_diag((
         sp.sparse.identity(fmin(p,r), format='dia', dtype=np.float64),
         C,
-        sp.sparse.csc_array((fmax(p,r), fmax(r,p)))
+        sp.sparse.csc_array((fmax(p,r), fmax(r,p)), dtype=np.float64)
     ))
 
     D_21 = sp.sparse.block_diag((
-        sp.sparse.csc_array((fmax(m1,r), fmax(r,m1))),
+        sp.sparse.csc_array((fmax(m1,r), fmax(r,m1)), dtype=np.float64),
         S,
         sp.sparse.identity(fmin(m1,r), format='dia', dtype=np.float64)
     ))
 
     D_12 = sp.sparse.block_diag((
-        sp.sparse.csc_array((fmax(p,m2), fmax(m2,p))),
+        sp.sparse.csc_array((fmax(p,m2), fmax(m2,p)), dtype=np.float64),
         -S,
         -sp.sparse.identity(fmin(m2,p), format='dia', dtype=np.float64)
     ))
@@ -43,7 +43,7 @@ def cs(Q: np.ndarray, shape: Tuple[int, int], ret: Literal['full', 'blocks', 'cs
     D_22 = sp.sparse.block_diag((
         sp.sparse.identity(fmin(m1, m2), format='dia', dtype=np.float64),
         C,
-        sp.sparse.csc_array((fmax(m1,m2), fmax(m2,m1)))
+        sp.sparse.csc_array((fmax(m1,m2), fmax(m2,m1)), dtype=np.float64)
     ))
 
     if ret == 'full':
@@ -75,10 +75,10 @@ def gsvd(A: np.ndarray, B:np.ndarray, tol: float = 1e-8):
     p, n = A.shape
     m1, n = B.shape
 
-    M = np.vstack([A, B])
+    M = np.vstack([A, B], dtype=np.float64)
     m, n = M.shape
 
-    Q, sv, Zt = np.linalg.svd(M, full_matrices=True, compute_uv=True)
+    Q, sv, Zt = sp.linalg.svd(M, full_matrices=True, compute_uv=True, lapack_driver='gesvd')
 
     sv[sv<tol] = 0
     r = np.count_nonzero(sv) # rank(M)
@@ -89,14 +89,18 @@ def gsvd(A: np.ndarray, B:np.ndarray, tol: float = 1e-8):
 
     (U_1, U_2), (D_11, D_12, D_21, D_22), (V_1t, V_2t) = cs(Q, shape=(p, r), ret='blocks')
 
-    W = sp.sparse.block_diag((
-        V_1t @ sp.sparse.dia_matrix((sv[:r], 0), shape=(r,r), dtype=np.float64),
+    #  (AB)^-1 = B^-1 A^-1
+    iW = sp.sparse.block_diag((
+        sp.sparse.dia_matrix((1./sv[:r], 0), shape=(r,r), dtype=np.float64) @ V_1t.T,
         sp.sparse.identity(n-r, format='dia', dtype=np.float64)
     ))
 
-    X = Zt.T @ sp.sparse.linalg.inv(W.tocsc())
+    X = Zt.T @ iW
 
-    D_A = sp.sparse.hstack((D_11, sp.sparse.csc_array(( p, n-r)))) # pxr + px(n-r)
-    D_B = sp.sparse.hstack((D_21, sp.sparse.csc_array((m1, n-r)))) # m1xr + m1x(n-r)
-
+    D_A = D_11.todia(copy=True)
+    D_A.resize((p,n)) # pxr + px(n-r) (padding zeros)
+    D_B = D_21.todia(copy=True)
+    D_B.resize((m1,n)) # m1xr + m1x(n-r) (padding zeros)
+    
     return (U_1, U_2), (D_A, D_B), X
+    
