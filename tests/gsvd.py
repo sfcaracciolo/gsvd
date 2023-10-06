@@ -4,11 +4,12 @@ import numpy as np
 
 rng = np.random.default_rng()
 
-for _ in range(1000):
+for _ in range(100):
 
     p = rng.integers(25, high=100)
-    n = rng.integers(25, high=100)
     m = rng.integers(p+1, high=p+50)
+    n = rng.integers(25, high=100)
+    # n = m + p + 1  # rng.integers(25, high=100)
 
     A = np.random.rand(p, n)
     B = np.random.rand(m-p, n)
